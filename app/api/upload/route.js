@@ -26,8 +26,8 @@ export async function POST(request) {
 
     const stmt = db.prepare('INSERT INTO documents (title, content, owner_id) VALUES (?, ?, ?)');
     // Wrap plain text in a paragraph so TipTap parses it correctly
-    const content = `<p>${text.replace(/\\n/g, '<br/>')}</p>`;
-    const info = stmt.run(title, content, userId);
+    const content = `<p>${text.replace(/\n/g, '<br/>')}</p>`;
+    const info = await stmt.run(title, content, userId);
 
     return new Response(JSON.stringify({ id: info.lastInsertRowid }), {
       status: 201,

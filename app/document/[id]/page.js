@@ -30,6 +30,8 @@ export default function DocumentPage() {
   const [shareSuccess, setShareSuccess] = useState(false);
   const saveTimeoutRef = useRef(null);
 
+  const isLoadedRef = useRef(false);
+
   const debouncedSave = useCallback(
     (content) => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -51,6 +53,7 @@ export default function DocumentPage() {
   useEffect(() => {
     if (!activeUser || !params.id) return;
     setLoading(true);
+    isLoadedRef.current = false;
     fetch(`/api/documents/${params.id}`, {
       headers: { 'x-user-id': activeUser.id },
     })
@@ -60,16 +63,20 @@ export default function DocumentPage() {
       })
       .then((data) => {
         setDoc(data);
-        if (editor) {
-          editor.commands.setContent(data.content || '');
-        }
       })
       .catch((err) => {
         console.error('Failed to load document', err);
         setDoc(null);
       })
       .finally(() => setLoading(false));
-  }, [activeUser, params.id, editor]);
+  }, [activeUser, params.id]);
+
+  useEffect(() => {
+    if (doc && editor && !isLoadedRef.current) {
+      editor.commands.setContent(doc.content || '');
+      isLoadedRef.current = true;
+    }
+  }, [doc, editor]);
 
   const saveContent = async (content) => {
     if (!activeUser || !params.id) return;
@@ -177,21 +184,27 @@ export default function DocumentPage() {
       <div className="editor-container">
         <div className="editor-toolbar">
           <button
+            type="button"
             className={`btn btn-icon ${editor?.isActive('bold') ? 'active' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor?.chain().focus().toggleBold().run()}
             title="Bold"
           >
             <Bold size={18} />
           </button>
           <button
+            type="button"
             className={`btn btn-icon ${editor?.isActive('italic') ? 'active' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor?.chain().focus().toggleItalic().run()}
             title="Italic"
           >
             <Italic size={18} />
           </button>
           <button
+            type="button"
             className={`btn btn-icon ${editor?.isActive('underline') ? 'active' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor?.chain().focus().toggleUnderline().run()}
             title="Underline"
           >
@@ -199,14 +212,18 @@ export default function DocumentPage() {
           </button>
           <div style={{ width: '1px', height: '1.5rem', background: 'var(--border-color)', margin: '0 0.25rem' }} />
           <button
+            type="button"
             className={`btn btn-icon ${editor?.isActive('heading', { level: 1 }) ? 'active' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
             title="Heading 1"
           >
             <Heading1 size={18} />
           </button>
           <button
+            type="button"
             className={`btn btn-icon ${editor?.isActive('heading', { level: 2 }) ? 'active' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
             title="Heading 2"
           >
@@ -214,14 +231,18 @@ export default function DocumentPage() {
           </button>
           <div style={{ width: '1px', height: '1.5rem', background: 'var(--border-color)', margin: '0 0.25rem' }} />
           <button
+            type="button"
             className={`btn btn-icon ${editor?.isActive('bulletList') ? 'active' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor?.chain().focus().toggleBulletList().run()}
             title="Bullet List"
           >
             <List size={18} />
           </button>
           <button
+            type="button"
             className={`btn btn-icon ${editor?.isActive('orderedList') ? 'active' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor?.chain().focus().toggleOrderedList().run()}
             title="Ordered List"
           >

@@ -14,7 +14,7 @@ export async function GET(request, { params }) {
       LEFT JOIN document_shares ds ON d.id = ds.document_id
       WHERE d.id = ? AND (d.owner_id = ? OR ds.user_id = ?)
     `);
-    const document = stmt.get(id, userId, userId);
+    const document = await stmt.get(id, userId, userId);
 
     if (!document) {
       return new Response(JSON.stringify({ error: 'Document not found or access denied' }), { status: 404 });
@@ -44,7 +44,7 @@ export async function PUT(request, { params }) {
       LEFT JOIN document_shares ds ON d.id = ds.document_id
       WHERE d.id = ? AND (d.owner_id = ? OR ds.user_id = ?)
     `);
-    const hasAccess = checkStmt.get(id, userId, userId);
+    const hasAccess = await checkStmt.get(id, userId, userId);
 
     if (!hasAccess) {
       return new Response(JSON.stringify({ error: 'Document not found or access denied' }), { status: 404 });
@@ -68,7 +68,7 @@ export async function PUT(request, { params }) {
     queryParams.push(id);
 
     const updateStmt = db.prepare(query);
-    updateStmt.run(...queryParams);
+    await updateStmt.run(...queryParams);
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

@@ -13,7 +13,7 @@ export async function POST(request, { params }) {
 
     // Check if the current user is the owner
     const checkStmt = db.prepare('SELECT id FROM documents WHERE id = ? AND owner_id = ?');
-    const isOwner = checkStmt.get(id, userId);
+    const isOwner = await checkStmt.get(id, userId);
 
     if (!isOwner) {
       return new Response(JSON.stringify({ error: 'Only the owner can share this document' }), { status: 403 });
@@ -21,7 +21,7 @@ export async function POST(request, { params }) {
 
     // Insert share record (ignore if already shared)
     const shareStmt = db.prepare('INSERT OR IGNORE INTO document_shares (document_id, user_id) VALUES (?, ?)');
-    shareStmt.run(id, userIdToShare);
+    await shareStmt.run(id, userIdToShare);
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
