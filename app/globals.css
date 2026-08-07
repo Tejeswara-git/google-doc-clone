@@ -234,15 +234,15 @@ input[type="text"]:focus, select:focus {
 }
 
 .ProseMirror strong, .ProseMirror b {
-  font-weight: 700;
+  font-weight: 700 !important;
 }
 
 .ProseMirror em, .ProseMirror i {
-  font-style: italic;
+  font-style: italic !important;
 }
 
 .ProseMirror u {
-  text-decoration: underline;
+  text-decoration: underline !important;
 }
 
 .ProseMirror p {

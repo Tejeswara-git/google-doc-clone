@@ -23,7 +23,7 @@ export default function Header() {
         >
           {users.map((user) => (
             <option key={user.id} value={user.id}>
-              {user.name}
+              {user.name} ({user.email || `${user.name.toLowerCase()}@example.com`})
             </option>
           ))}
         </select>

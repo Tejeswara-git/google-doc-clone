@@ -28,6 +28,7 @@ export default function DocumentPage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareUserId, setShareUserId] = useState('');
   const [shareSuccess, setShareSuccess] = useState(false);
+  const [, setTick] = useState(0);
   const saveTimeoutRef = useRef(null);
 
   const isLoadedRef = useRef(false);
@@ -48,6 +49,8 @@ export default function DocumentPage() {
     onUpdate: ({ editor }) => {
       debouncedSave(editor.getHTML());
     },
+    onSelectionUpdate: () => setTick((t) => t + 1),
+    onTransaction: () => setTick((t) => t + 1),
   });
 
   useEffect(() => {
@@ -268,10 +271,10 @@ export default function DocumentPage() {
               onChange={(e) => setShareUserId(e.target.value)}
               style={{ width: '100%', marginBottom: '1rem' }}
             >
-              <option value="">Select a user...</option>
+              <option value="">Select a user by email...</option>
               {otherUsers.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {u.name}
+                  {u.name} ({u.email || `${u.name.toLowerCase()}@example.com`})
                 </option>
               ))}
             </select>
