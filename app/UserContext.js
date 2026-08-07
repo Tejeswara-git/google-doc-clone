@@ -10,23 +10,32 @@ export function UserProvider({ children }) {
 
   useEffect(() => {
     fetch('/api/users')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch users');
+        return res.json();
+      })
       .then(data => {
-        setUsers(data);
-        if (data.length > 0) {
-          // Initialize active user from localStorage or default to first user
-          const savedUserId = localStorage.getItem('activeUserId');
-          if (savedUserId) {
-            const saved = data.find(u => u.id === parseInt(savedUserId));
-            if (saved) {
-              setActiveUser(saved);
-              return;
+        if (Array.isArray(data)) {
+          setUsers(data);
+          if (data.length > 0) {
+            const savedUserId = localStorage.getItem('activeUserId');
+            if (savedUserId) {
+              const saved = data.find(u => u.id === parseInt(savedUserId));
+              if (saved) {
+                setActiveUser(saved);
+                return;
+              }
             }
+            setActiveUser(data[0]);
           }
-          setActiveUser(data[0]);
+        } else {
+          setUsers([]);
         }
       })
-      .catch(err => console.error("Failed to load users", err));
+      .catch(err => {
+        console.error("Failed to load users", err);
+        setUsers([]);
+      });
   }, []);
 
   const changeUser = (userId) => {

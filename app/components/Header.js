@@ -5,7 +5,8 @@ import { useUser } from '@/app/UserContext';
 import { FileText } from 'lucide-react';
 
 export default function Header() {
-  const { users, activeUser, changeUser } = useUser();
+  const { users, activeUser, changeUser } = useUser() || {};
+  const userList = Array.isArray(users) ? users : [];
 
   return (
     <header className="app-header">
@@ -21,7 +22,7 @@ export default function Header() {
           value={activeUser?.id || ''}
           onChange={(e) => changeUser(e.target.value)}
         >
-          {users.map((user) => (
+          {userList.map((user) => (
             <option key={user.id} value={user.id}>
               {user.name} ({user.email || `${user.name.toLowerCase()}@example.com`})
             </option>
