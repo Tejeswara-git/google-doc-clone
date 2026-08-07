@@ -6,17 +6,36 @@ import { useUser } from '@/app/UserContext';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
+import Highlight from '@tiptap/extension-highlight';
+import TextAlign from '@tiptap/extension-text-align';
 import {
   Bold,
   Italic,
   Underline as UnderlineIcon,
+  Strikethrough,
+  Highlighter,
   Heading1,
   Heading2,
+  Heading3,
   List,
   ListOrdered,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  Quote,
+  Code,
+  Minus,
+  Undo,
+  Redo,
   ArrowLeft,
   Share2,
   Check,
+  Download,
+  Printer,
+  PanelLeft,
+  CloudCheck,
+  CloudUpload,
 } from 'lucide-react';
 
 export default function DocumentPage() {
@@ -25,17 +44,40 @@ export default function DocumentPage() {
   const params = useParams();
   const [doc, setDoc] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareUserId, setShareUserId] = useState('');
   const [shareSuccess, setShareSuccess] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [, setTick] = useState(0);
-  const saveTimeoutRef = useRef(null);
 
+  const saveTimeoutRef = useRef(null);
   const isLoadedRef = useRef(false);
+
+  const saveContent = async (content) => {
+    if (!activeUser || !params.id) return;
+    try {
+      setSaving(true);
+      await fetch(`/api/documents/${params.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': activeUser.id,
+        },
+        body: JSON.stringify({ content }),
+      });
+    } catch (err) {
+      console.error('Failed to save', err);
+    } finally {
+      setTimeout(() => setSaving(false), 500);
+    }
+  };
 
   const debouncedSave = useCallback(
     (content) => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      setSaving(true);
       saveTimeoutRef.current = setTimeout(() => {
         saveContent(content);
       }, 1000);
@@ -44,7 +86,14 @@ export default function DocumentPage() {
   );
 
   const editor = useEditor({
-    extensions: [StarterKit, Underline],
+    extensions: [
+      StarterKit,
+      Underline,
+      Highlight.configure({ multicolor: true }),
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
+    ],
     content: '',
     onUpdate: ({ editor }) => {
       debouncedSave(editor.getHTML());
@@ -81,26 +130,11 @@ export default function DocumentPage() {
     }
   }, [doc, editor]);
 
-  const saveContent = async (content) => {
-    if (!activeUser || !params.id) return;
-    try {
-      await fetch(`/api/documents/${params.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': activeUser.id,
-        },
-        body: JSON.stringify({ content }),
-      });
-    } catch (err) {
-      console.error('Failed to save', err);
-    }
-  };
-
   const handleTitleChange = async (e) => {
     const newTitle = e.target.value;
     setDoc((prev) => ({ ...prev, title: newTitle }));
     try {
+      setSaving(true);
       await fetch(`/api/documents/${params.id}`, {
         method: 'PUT',
         headers: {
@@ -111,6 +145,8 @@ export default function DocumentPage() {
       });
     } catch (err) {
       console.error('Failed to update title', err);
+    } finally {
+      setTimeout(() => setSaving(false), 500);
     }
   };
 
@@ -137,6 +173,57 @@ export default function DocumentPage() {
     }
   };
 
+  // Export functions
+  const downloadFile = (filename, content, type) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setShowExportMenu(false);
+  };
+
+  const exportAsText = () => {
+    if (!editor) return;
+    downloadFile(`${doc.title || 'Document'}.txt`, editor.getText(), 'text/plain;charset=utf-8');
+  };
+
+  const exportAsHTML = () => {
+    if (!editor) return;
+    downloadFile(`${doc.title || 'Document'}.html`, editor.getHTML(), 'text/html;charset=utf-8');
+  };
+
+  const exportAsPDF = () => {
+    setShowExportMenu(false);
+    window.print();
+  };
+
+  // Extract Outline Headings
+  const getHeadings = () => {
+    if (!editor) return [];
+    const headings = [];
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'heading') {
+        headings.push({
+          level: node.attrs.level,
+          text: node.textContent,
+          pos,
+        });
+      }
+    });
+    return headings;
+  };
+
+  // Statistics
+  const text = editor ? editor.getText() : '';
+  const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const charCount = text.length;
+  const readingTime = Math.ceil(wordCount / 200);
+
   if (loading) {
     return <div className="empty-state">Loading document...</div>;
   }
@@ -159,23 +246,83 @@ export default function DocumentPage() {
     );
   }
 
-  const otherUsers = users.filter((u) => u.id !== activeUser?.id);
+  const otherUsers = (users || []).filter((u) => u.id !== activeUser?.id);
+  const headings = getHeadings();
 
   return (
     <div>
-      {/* Top Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-        <button className="btn btn-icon" onClick={() => router.push('/')}>
+      {/* Top Bar / Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        <button className="btn btn-icon" onClick={() => router.push('/')} title="Back to Dashboard">
           <ArrowLeft size={20} />
         </button>
+
         <input
           type="text"
           className="title-input"
           value={doc.title || ''}
           onChange={handleTitleChange}
-          style={{ flex: 1 }}
-          placeholder="Document title..."
+          style={{ flex: 1, minWidth: '200px' }}
+          placeholder="Untitled document..."
         />
+
+        {/* Save Status Indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+          {saving ? (
+            <>
+              <CloudUpload size={16} className="spin" style={{ color: 'var(--accent-color)' }} />
+              <span>Saving...</span>
+            </>
+          ) : (
+            <>
+              <CloudCheck size={16} style={{ color: '#10b981' }} />
+              <span>Saved to cloud</span>
+            </>
+          )}
+        </div>
+
+        {/* Export Dropdown */}
+        <div style={{ position: 'relative' }}>
+          <button className="btn btn-secondary" onClick={() => setShowExportMenu(!showExportMenu)} title="Export Document">
+            <Download size={18} /> Export
+          </button>
+          {showExportMenu && (
+            <div style={{
+              position: 'absolute',
+              right: 0,
+              top: '100%',
+              marginTop: '0.5rem',
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              boxShadow: 'var(--shadow-lg)',
+              zIndex: 60,
+              minWidth: '180px',
+              padding: '0.5rem 0',
+            }}>
+              <button
+                style={{ width: '100%', textAlign: 'left', padding: '0.5rem 1rem', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                onClick={exportAsPDF}
+              >
+                <Printer size={16} /> Print / PDF
+              </button>
+              <button
+                style={{ width: '100%', textAlign: 'left', padding: '0.5rem 1rem', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                onClick={exportAsText}
+              >
+                📄 Plain Text (.txt)
+              </button>
+              <button
+                style={{ width: '100%', textAlign: 'left', padding: '0.5rem 1rem', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                onClick={exportAsHTML}
+              >
+                🌐 Web Page (.html)
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Share Button */}
         {doc.owner_id === activeUser?.id && (
           <button className="btn btn-primary" onClick={() => setShowShareModal(true)}>
             <Share2 size={18} /> Share
@@ -183,15 +330,53 @@ export default function DocumentPage() {
         )}
       </div>
 
-      {/* Editor */}
+      {/* Editor Container */}
       <div className="editor-container">
+        {/* Full Rich Toolbar */}
         <div className="editor-toolbar">
+          {/* Outline Toggle */}
+          <button
+            type="button"
+            className={`btn btn-icon ${showSidebar ? 'active' : ''}`}
+            onClick={() => setShowSidebar(!showSidebar)}
+            title="Toggle Outline Sidebar"
+          >
+            <PanelLeft size={18} />
+          </button>
+
+          <div style={{ width: '1px', height: '1.25rem', background: 'var(--border-color)', margin: '0 0.25rem' }} />
+
+          {/* Undo / Redo */}
+          <button
+            type="button"
+            className="btn btn-icon"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().undo().run()}
+            disabled={!editor?.can().undo()}
+            title="Undo (Ctrl+Z)"
+          >
+            <Undo size={18} />
+          </button>
+          <button
+            type="button"
+            className="btn btn-icon"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().redo().run()}
+            disabled={!editor?.can().redo()}
+            title="Redo (Ctrl+Y)"
+          >
+            <Redo size={18} />
+          </button>
+
+          <div style={{ width: '1px', height: '1.25rem', background: 'var(--border-color)', margin: '0 0.25rem' }} />
+
+          {/* Text Styles: Bold, Italic, Underline, Strike, Highlight */}
           <button
             type="button"
             className={`btn btn-icon ${editor?.isActive('bold') ? 'active' : ''}`}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor?.chain().focus().toggleBold().run()}
-            title="Bold"
+            title="Bold (Ctrl+B)"
           >
             <Bold size={18} />
           </button>
@@ -200,7 +385,7 @@ export default function DocumentPage() {
             className={`btn btn-icon ${editor?.isActive('italic') ? 'active' : ''}`}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor?.chain().focus().toggleItalic().run()}
-            title="Italic"
+            title="Italic (Ctrl+I)"
           >
             <Italic size={18} />
           </button>
@@ -209,11 +394,32 @@ export default function DocumentPage() {
             className={`btn btn-icon ${editor?.isActive('underline') ? 'active' : ''}`}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor?.chain().focus().toggleUnderline().run()}
-            title="Underline"
+            title="Underline (Ctrl+U)"
           >
             <UnderlineIcon size={18} />
           </button>
-          <div style={{ width: '1px', height: '1.5rem', background: 'var(--border-color)', margin: '0 0.25rem' }} />
+          <button
+            type="button"
+            className={`btn btn-icon ${editor?.isActive('strike') ? 'active' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().toggleStrike().run()}
+            title="Strikethrough"
+          >
+            <Strikethrough size={18} />
+          </button>
+          <button
+            type="button"
+            className={`btn btn-icon ${editor?.isActive('highlight') ? 'active' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().toggleHighlight().run()}
+            title="Highlight Text"
+          >
+            <Highlighter size={18} />
+          </button>
+
+          <div style={{ width: '1px', height: '1.25rem', background: 'var(--border-color)', margin: '0 0.25rem' }} />
+
+          {/* Headings */}
           <button
             type="button"
             className={`btn btn-icon ${editor?.isActive('heading', { level: 1 }) ? 'active' : ''}`}
@@ -232,7 +438,59 @@ export default function DocumentPage() {
           >
             <Heading2 size={18} />
           </button>
-          <div style={{ width: '1px', height: '1.5rem', background: 'var(--border-color)', margin: '0 0.25rem' }} />
+          <button
+            type="button"
+            className={`btn btn-icon ${editor?.isActive('heading', { level: 3 }) ? 'active' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
+            title="Heading 3"
+          >
+            <Heading3 size={18} />
+          </button>
+
+          <div style={{ width: '1px', height: '1.25rem', background: 'var(--border-color)', margin: '0 0.25rem' }} />
+
+          {/* Alignments */}
+          <button
+            type="button"
+            className={`btn btn-icon ${editor?.isActive({ textAlign: 'left' }) ? 'active' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().setTextAlign('left').run()}
+            title="Align Left"
+          >
+            <AlignLeft size={18} />
+          </button>
+          <button
+            type="button"
+            className={`btn btn-icon ${editor?.isActive({ textAlign: 'center' }) ? 'active' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().setTextAlign('center').run()}
+            title="Align Center"
+          >
+            <AlignCenter size={18} />
+          </button>
+          <button
+            type="button"
+            className={`btn btn-icon ${editor?.isActive({ textAlign: 'right' }) ? 'active' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().setTextAlign('right').run()}
+            title="Align Right"
+          >
+            <AlignRight size={18} />
+          </button>
+          <button
+            type="button"
+            className={`btn btn-icon ${editor?.isActive({ textAlign: 'justify' }) ? 'active' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().setTextAlign('justify').run()}
+            title="Justify"
+          >
+            <AlignJustify size={18} />
+          </button>
+
+          <div style={{ width: '1px', height: '1.25rem', background: 'var(--border-color)', margin: '0 0.25rem' }} />
+
+          {/* Lists & Quotes */}
           <button
             type="button"
             className={`btn btn-icon ${editor?.isActive('bulletList') ? 'active' : ''}`}
@@ -251,10 +509,77 @@ export default function DocumentPage() {
           >
             <ListOrdered size={18} />
           </button>
+          <button
+            type="button"
+            className={`btn btn-icon ${editor?.isActive('blockquote') ? 'active' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().toggleBlockquote().run()}
+            title="Blockquote"
+          >
+            <Quote size={18} />
+          </button>
+          <button
+            type="button"
+            className={`btn btn-icon ${editor?.isActive('codeBlock') ? 'active' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
+            title="Code Block"
+          >
+            <Code size={18} />
+          </button>
+          <button
+            type="button"
+            className="btn btn-icon"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor?.chain().focus().setHorizontalRule().run()}
+            title="Horizontal Divider"
+          >
+            <Minus size={18} />
+          </button>
         </div>
 
-        <div className="editor-content">
-          <EditorContent editor={editor} />
+        {/* Workspace: Sidebar + Paper Viewport */}
+        <div className="editor-workspace">
+          {/* Outline Sidebar */}
+          {showSidebar && (
+            <div className="editor-outline-sidebar">
+              <div className="editor-outline-title">Outline</div>
+              {headings.length === 0 ? (
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                  Headings you add will appear here.
+                </div>
+              ) : (
+                headings.map((h, i) => (
+                  <div
+                    key={i}
+                    className={`outline-item outline-h${h.level}`}
+                    onClick={() => editor?.chain().focus().setTextSelection(h.pos).run()}
+                  >
+                    {h.text || 'Untitled Section'}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* Main Document Paper Viewport */}
+          <div className="editor-main-viewport">
+            <div className="doc-paper">
+              <EditorContent editor={editor} />
+            </div>
+          </div>
+        </div>
+
+        {/* Real-time Status Bar */}
+        <div className="editor-statusbar">
+          <div>
+            <span>{wordCount} words</span>
+            <span style={{ margin: '0 0.5rem' }}>•</span>
+            <span>{charCount} characters</span>
+            <span style={{ margin: '0 0.5rem' }}>•</span>
+            <span>~{readingTime} min read</span>
+          </div>
+          <div>Google Docs Mode • Auto-Synced</div>
         </div>
       </div>
 

@@ -204,7 +204,7 @@ input[type="text"]:focus, select:focus {
 .editor-container {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 150px);
+  height: calc(100vh - 130px);
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
@@ -216,20 +216,80 @@ input[type="text"]:focus, select:focus {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 1rem;
   border-bottom: 1px solid var(--border-color);
-  background-color: #1a1c23;
+  background-color: #16181f;
+  flex-wrap: wrap;
 }
 
-.editor-content {
+.editor-workspace {
+  display: flex;
   flex: 1;
-  padding: 2rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.editor-outline-sidebar {
+  width: 220px;
+  border-right: 1px solid var(--border-color);
+  background-color: #12141a;
+  padding: 1rem;
   overflow-y: auto;
-  cursor: text;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.editor-outline-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.outline-item {
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.15s, color 0.15s;
+}
+
+.outline-item:hover {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.outline-h1 { font-weight: 600; color: var(--text-primary); }
+.outline-h2 { padding-left: 1rem; }
+.outline-h3 { padding-left: 1.75rem; font-size: 0.8rem; }
+
+.editor-main-viewport {
+  flex: 1;
+  padding: 2rem 1rem;
+  overflow-y: auto;
+  background-color: #0b0c0f;
+  display: flex;
+  justify-content: center;
+}
+
+.doc-paper {
+  background-color: #16181d;
+  width: 100%;
+  max-width: 800px;
+  min-height: 1000px;
+  padding: 3rem 4rem;
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-color);
 }
 
 .ProseMirror {
-  min-height: 100%;
+  min-height: 900px;
   outline: none;
 }
 
@@ -245,6 +305,32 @@ input[type="text"]:focus, select:focus {
   text-decoration: underline !important;
 }
 
+.ProseMirror mark {
+  background-color: rgba(253, 224, 71, 0.35);
+  color: #fef08a;
+  padding: 0.1rem 0.2rem;
+  border-radius: 2px;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid var(--accent-color);
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.ProseMirror pre {
+  background: #0f1117;
+  color: #e2e8f0;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  margin: 1rem 0;
+  border: 1px solid var(--border-color);
+}
+
 .ProseMirror p {
   margin-bottom: 1rem;
 }
@@ -257,6 +343,17 @@ input[type="text"]:focus, select:focus {
 .ProseMirror h1, .ProseMirror h2, .ProseMirror h3 {
   margin-top: 1.5rem;
   margin-bottom: 0.5rem;
+}
+
+.editor-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 1rem;
+  background-color: #12141a;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
 }
 
 .title-input {
@@ -303,7 +400,7 @@ input[type="text"]:focus, select:focus {
 
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; }
 }
 
 .empty-state {
@@ -313,8 +410,41 @@ input[type="text"]:focus, select:focus {
 }
 
 .section-title {
-  margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+}
+
+.section-title h2 {
+  font-size: 1.125rem;
+  color: var(--text-primary);
+}
+
+/* Print Rules for Export to PDF / Print */
+@media print {
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+  .app-header, .editor-toolbar, .editor-statusbar, .editor-outline-sidebar, .modal-overlay, button, input {
+    display: none !important;
+  }
+  .editor-container, .editor-main-viewport, .doc-paper {
+    height: auto !important;
+    min-height: auto !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .ProseMirror {
+    color: black !important;
+    min-height: auto !important;
+  }
 }
